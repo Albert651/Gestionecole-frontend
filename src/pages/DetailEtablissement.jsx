@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getEtablissement, envoyerMessage } from '../api'
+import BoutonReservation from '../components/BoutonReservation'
 
-// Page de detail : etablissement + caracteristiques + formulaire de contact direct.
 export default function DetailEtablissement() {
   const { id } = useParams()
   const [etab, setEtab] = useState(null)
@@ -38,7 +38,6 @@ export default function DetailEtablissement() {
         ← Tous les établissements
       </Link>
 
-      {/* Image principale */}
       <div className="mt-5 h-64 sm:h-80 rounded-3xl overflow-hidden bg-encre">
         {etab.imageUrl ? (
           <img src={etab.imageUrl} alt={etab.nom} className="h-full w-full object-cover" />
@@ -49,7 +48,6 @@ export default function DetailEtablissement() {
         )}
       </div>
 
-      {/* Logo + titre */}
       <div className="mt-8 flex items-center gap-4">
         {etab.logoUrl && (
           <img src={etab.logoUrl} alt="logo" className="h-16 w-16 rounded-xl object-cover border border-encre/10 bg-white" />
@@ -64,7 +62,6 @@ export default function DetailEtablissement() {
         <p className="mt-6 text-lg text-ardoise leading-relaxed">{etab.description}</p>
       )}
 
-      {/* Caracteristiques */}
       {caracteristiques.length > 0 && (
         <section className="mt-10">
           <h2 className="font-display text-2xl font-semibold">Caractéristiques de l'établissement</h2>
@@ -79,13 +76,15 @@ export default function DetailEtablissement() {
         </section>
       )}
 
+      {/* Bouton de reservation (gere connecte / non connecte) */}
+      <BoutonReservation etablissement={etab} />
+
       {/* Coordonnees + formulaire de contact direct */}
       <FormulaireContact etab={etab} />
     </article>
   )
 }
 
-// ---------- Formulaire de contact lie a l'etablissement ----------
 function FormulaireContact({ etab }) {
   const [form, setForm] = useState({ nom: '', email: '', contenu: '' })
   const [envoye, setEnvoye] = useState(false)
@@ -100,7 +99,6 @@ function FormulaireContact({ etab }) {
     }
     setEnCours(true); setErreur(null)
     try {
-      // On joint l'id de l'etablissement : le backend enverra l'e-mail au bon directeur
       await envoyerMessage({ ...form, etablissementId: etab.id })
       setEnvoye(true)
     } catch (e) {
@@ -114,7 +112,6 @@ function FormulaireContact({ etab }) {
     <section className="mt-10 rounded-2xl border border-encre/10 bg-white p-7">
       <h2 className="font-display text-2xl font-semibold">Contacter la direction</h2>
 
-      {/* Coordonnees */}
       <div className="mt-4 space-y-1 text-ardoise text-sm">
         {etab.email && <p>Courriel : <span className="text-encre font-medium">{etab.email}</span></p>}
         {etab.telephone && <p>Téléphone : <span className="text-encre font-medium">{etab.telephone}</span></p>}

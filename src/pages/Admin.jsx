@@ -4,6 +4,7 @@ import {
   getAnnonces, creerAnnonce, supprimerAnnonce,
   getMessages, supprimerMessage,
   getToutesReservations, changerStatutReservation, supprimerReservation,
+  getCommuniques, creerCommunique, supprimerCommunique,
 } from '../api'
 import ImportPhoto from '../components/ImportPhoto'
 
@@ -25,6 +26,22 @@ function Champ({ label, valeur, onChange, type = 'text', placeholder, aire }) {
   )
 }
 
+// Liste deroulante reutilisable
+function Liste({ label, valeur, onChange, options, placeholder }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">{label}</label>
+      <select value={valeur} onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-encre/15 bg-white px-4 py-3 outline-none focus:border-or">
+        <option value="">{placeholder || '— Choisir —'}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 export default function Admin() {
   const [onglet, setOnglet] = useState('etablissements')
   const [message, setMessage] = useState(null)
@@ -36,6 +53,7 @@ export default function Admin() {
     { cle: 'annonces', label: 'Annonces' },
     { cle: 'messages', label: 'Messages reçus' },
     { cle: 'reservations', label: 'Réservations' },
+    { cle: 'communiques', label: 'Communiqués' },
   ]
 
   return (
@@ -68,6 +86,7 @@ export default function Admin() {
         {onglet === 'annonces' && <GestionAnnonces notifier={notifier} />}
         {onglet === 'messages' && <GestionMessages notifier={notifier} />}
         {onglet === 'reservations' && <GestionReservations notifier={notifier} />}
+        {onglet === 'communiques' && <GestionCommuniques notifier={notifier} />}
       </div>
     </div>
   )
@@ -206,23 +225,30 @@ function GestionEtablissements({ notifier }) {
 
 // ---------- Onglet ANNONCES ----------
 function GestionAnnonces({ notifier }) {
-  const [form, setForm] = useState({ titre: '', contenu: '' })
+  const [form, setForm] = useState({ titre: '', contenu: '', etablissementId: '' })
   const [liste, setListe] = useState([])
+  const [etablissements, setEtablissements] = useState([])
   const [enCours, setEnCours] = useState(false)
   const set = (champ) => (val) => setForm((f) => ({ ...f, [champ]: val }))
 
   function rafraichir() {
     getAnnonces().then(setListe).catch((e) => notifier('erreur', e.message))
   }
-  useEffect(rafraichir, [])
+  useEffect(() => {
+    rafraichir()
+    getEtablissements().then(setEtablissements).catch(() => {})
+  }, [])
 
   async function soumettre() {
     if (!form.titre.trim()) return notifier('erreur', 'Le titre est obligatoire.')
     setEnCours(true)
     try {
-      await creerAnnonce(form)
+      await creerAnnonce({
+        ...form,
+        etablissementId: form.etablissementId ? Number(form.etablissementId) : null,
+      })
       notifier('ok', 'Annonce publiée !')
-      setForm({ titre: '', contenu: '' }); rafraichir()
+      setForm({ titre: '', contenu: '', etablissementId: '' }); rafraichir()
     } catch (e) { notifier('erreur', e.message) }
     finally { setEnCours(false) }
   }
@@ -239,6 +265,9 @@ function GestionAnnonces({ notifier }) {
         <h2 className="font-display text-2xl font-semibold mb-5">Publier une annonce</h2>
         <div className="space-y-4">
           <Champ label="Titre *" valeur={form.titre} onChange={set('titre')} placeholder="Ouverture des inscriptions" />
+          <Liste label="Établissement concerné" valeur={form.etablissementId} onChange={set('etablissementId')}
+            placeholder="— Tous / aucun —"
+            options={etablissements.map((e) => ({ value: String(e.id), label: e.nom }))} />
           <Champ label="Contenu" valeur={form.contenu} onChange={set('contenu')} aire placeholder="Détail de l'annonce…" />
           <button onClick={soumettre} disabled={enCours}
             className="rounded-xl bg-encre text-creme px-7 py-3 font-semibold hover:bg-or hover:text-encre transition-colors disabled:opacity-50">
@@ -255,6 +284,7 @@ function GestionAnnonces({ notifier }) {
               <li key={a.id} className="flex items-start justify-between gap-4 rounded-xl border border-encre/10 bg-white px-5 py-4">
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{a.titre}</p>
+                  {a.etablissementNom && <p className="text-xs text-or font-medium">{a.etablissementNom}</p>}
                   <p className="text-sm text-ardoise line-clamp-2">{a.contenu}</p>
                 </div>
                 <button onClick={() => supprimer(a)}
@@ -356,7 +386,16 @@ function GestionReservations({ notifier }) {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="font-semibold">{r.etablissementNom}</p>
+                  <p className="text-sm text-ardoise">
+                    {r.nomComplet || r.utilisateurEmail}
+                    {r.telephone ? ` · ${r.telephone}` : ''}
+                  </p>
                   <p className="text-sm text-ardoise">{r.utilisateurEmail}</p>
+                  {r.dateSouhaitee && (
+                    <p className="text-sm text-or font-medium">
+                      Date souhaitée : {new Date(r.dateSouhaitee).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}
+                    </p>
+                  )}
                   {r.note && <p className="mt-1 text-sm text-ardoise italic">« {r.note} »</p>}
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${styleStatut[r.statut] || 'bg-sable text-ardoise'}`}>
@@ -382,5 +421,100 @@ function GestionReservations({ notifier }) {
         </ul>
       )}
     </section>
+  )
+}
+
+
+// ---------- Onglet COMMUNIQUÉS ----------
+function GestionCommuniques({ notifier }) {
+  const vide = { titre: '', modalitesAdmission: '', fraisInscription: '', fraisScolarite: '', periodeScolarite: '', etablissementId: '' }
+  const [form, setForm] = useState(vide)
+  const [liste, setListe] = useState([])
+  const [etablissements, setEtablissements] = useState([])
+  const [enCours, setEnCours] = useState(false)
+  const set = (champ) => (val) => setForm((f) => ({ ...f, [champ]: val }))
+
+  function rafraichir() {
+    getCommuniques().then(setListe).catch((e) => notifier('erreur', e.message))
+  }
+  useEffect(() => {
+    rafraichir()
+    getEtablissements().then(setEtablissements).catch(() => {})
+  }, [])
+
+  async function soumettre() {
+    if (!form.titre.trim()) return notifier('erreur', 'Le titre est obligatoire.')
+    setEnCours(true)
+    try {
+      await creerCommunique({
+        ...form,
+        etablissementId: form.etablissementId ? Number(form.etablissementId) : null,
+      })
+      notifier('ok', 'Communiqué publié !')
+      setForm(vide); rafraichir()
+    } catch (e) { notifier('erreur', e.message) }
+    finally { setEnCours(false) }
+  }
+
+  async function supprimer(c) {
+    if (!confirm(`Supprimer le communiqué « ${c.titre} » ?`)) return
+    try { await supprimerCommunique(c.id); notifier('ok', 'Supprimé.'); rafraichir() }
+    catch (e) { notifier('erreur', e.message) }
+  }
+
+  return (
+    <div className="grid gap-10 lg:grid-cols-2">
+      <section>
+        <h2 className="font-display text-2xl font-semibold mb-5">Publier un communiqué</h2>
+        <div className="space-y-4">
+          <Champ label="Titre *" valeur={form.titre} onChange={set('titre')} placeholder="Rentrée 2026-2027" />
+          <Liste label="Établissement concerné" valeur={form.etablissementId} onChange={set('etablissementId')}
+            placeholder="— Tous / aucun —"
+            options={etablissements.map((e) => ({ value: String(e.id), label: e.nom }))} />
+          <Champ label="Modalités d'admission" valeur={form.modalitesAdmission} onChange={set('modalitesAdmission')} aire placeholder="Dossier, test d'évaluation, entretien…" />
+          <Champ label="Frais d'inscription" valeur={form.fraisInscription} onChange={set('fraisInscription')} placeholder="50 000 Ar" />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Champ label="Frais de scolarité" valeur={form.fraisScolarite} onChange={set('fraisScolarite')} placeholder="120 000 Ar" />
+            <Liste label="Période" valeur={form.periodeScolarite} onChange={set('periodeScolarite')}
+              placeholder="— Choisir —"
+              options={[
+                { value: 'Par mois', label: 'Par mois' },
+                { value: 'Par trimestre', label: 'Par trimestre' },
+                { value: 'Par semestre', label: 'Par semestre' },
+                { value: 'Par an', label: 'Par an' },
+              ]} />
+          </div>
+          <button onClick={soumettre} disabled={enCours}
+            className="rounded-xl bg-encre text-creme px-7 py-3 font-semibold hover:bg-or hover:text-encre transition-colors disabled:opacity-50">
+            {enCours ? 'Publication…' : 'Publier le communiqué'}
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="font-display text-2xl font-semibold mb-5">Communiqués ({liste.length})</h2>
+        {liste.length === 0 ? <p className="text-ardoise">Aucun communiqué.</p> : (
+          <ul className="space-y-3">
+            {liste.map((c) => (
+              <li key={c.id} className="flex items-start justify-between gap-4 rounded-xl border border-encre/10 bg-white px-5 py-4">
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{c.titre}</p>
+                  {c.etablissementNom && <p className="text-xs text-or font-medium">{c.etablissementNom}</p>}
+                  <p className="text-sm text-ardoise">
+                    {c.fraisInscription && `Inscription : ${c.fraisInscription}`}
+                    {c.fraisInscription && c.fraisScolarite ? ' · ' : ''}
+                    {c.fraisScolarite && `Scolarité : ${c.fraisScolarite}${c.periodeScolarite ? ' (' + c.periodeScolarite + ')' : ''}`}
+                  </p>
+                </div>
+                <button onClick={() => supprimer(c)}
+                  className="shrink-0 rounded-lg border border-red-200 text-red-600 px-4 py-2 text-sm font-medium hover:bg-red-50 transition-colors">
+                  Supprimer
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   )
 }

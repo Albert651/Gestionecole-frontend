@@ -57,6 +57,11 @@ export default function MesReservations() {
                   day: 'numeric', month: 'long', year: 'numeric',
                 }) : ''}
               </p>
+              {r.dateSouhaitee && (
+                <p className="mt-1 text-sm text-or font-medium">
+                  Date souhaitée : {new Date(r.dateSouhaitee).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })}
+                </p>
+              )}
               {r.note && <p className="mt-1 text-sm text-ardoise italic">« {r.note} »</p>}
             </div>
             <div className="flex flex-col items-end gap-2">

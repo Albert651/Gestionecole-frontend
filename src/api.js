@@ -181,3 +181,29 @@ export async function modifierEtablissement(id, donnees) {
   if (!r.ok) throw new Error("La modification a échoué (es-tu connecté en admin ?)");
   return r.json();
 }
+
+// ---------- COMMUNIQUÉS ----------
+
+export async function getCommuniques() {
+  const r = await fetch(`${BASE_URL}/communiques`, { headers: entetes() });
+  if (!r.ok) throw new Error("Impossible de charger les communiqués");
+  return r.json();
+}
+
+export async function creerCommunique(donnees) {
+  const r = await fetch(`${BASE_URL}/communiques`, {
+    method: "POST",
+    headers: entetes(),
+    body: JSON.stringify(donnees),
+  });
+  if (!r.ok) throw new Error("La création du communiqué a échoué");
+  return r.json();
+}
+
+export async function supprimerCommunique(id) {
+  const r = await fetch(`${BASE_URL}/communiques/${id}`, {
+    method: "DELETE",
+    headers: entetes(),
+  });
+  if (!r.ok) throw new Error("La suppression a échoué");
+}

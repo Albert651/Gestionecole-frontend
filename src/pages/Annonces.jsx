@@ -1,7 +1,20 @@
 import { useEffect, useState } from 'react'
 import { getAnnonces } from '../api'
 
-// Page Annonces : affiche les vraies annonces venant de l'API.
+// Ouvre la fenetre de partage Facebook pour une annonce
+function partagerFacebook(annonce) {
+  // On partage l'URL de la page Annonces (l'annonce y est visible).
+  const url = window.location.href
+  const lien =
+    'https://www.facebook.com/sharer/sharer.php?u=' +
+    encodeURIComponent(url) +
+    '&quote=' +
+    encodeURIComponent(annonce.titre + ' — ' + (annonce.contenu || ''))
+  // Petite fenetre popup
+  window.open(lien, 'partage-facebook', 'width=600,height=500')
+}
+
+// Page Annonces : affiche les annonces venant de l'API.
 export default function Annonces() {
   const [annonces, setAnnonces] = useState([])
   const [chargement, setChargement] = useState(true)
@@ -27,9 +40,7 @@ export default function Annonces() {
         {chargement && <p className="text-ardoise">Chargement…</p>}
 
         {erreur && (
-          <p className="text-red-700">
-            {erreur}. Vérifie que le backend tourne.
-          </p>
+          <p className="text-red-700">{erreur}. Vérifie que le backend tourne.</p>
         )}
 
         {!chargement && !erreur && annonces.length === 0 && (
@@ -48,9 +59,26 @@ export default function Annonces() {
                 : ''}
             </time>
             <h2 className="mt-1 font-display text-2xl font-semibold">{a.titre}</h2>
+            {a.etablissementNom && (
+              <p className="mt-1 text-sm text-ardoise">📍 {a.etablissementNom}</p>
+            )}
             <p className="mt-3 text-ardoise leading-relaxed whitespace-pre-line">
               {a.contenu}
             </p>
+
+            {/* Bouton de partage Facebook */}
+            <div className="mt-5 flex items-center gap-3 border-t border-encre/10 pt-4">
+              <span className="text-sm text-ardoise">Partager :</span>
+              <button
+                onClick={() => partagerFacebook(a)}
+                title="Partager sur Facebook"
+                aria-label="Partager sur Facebook"
+                className="grid place-items-center h-10 w-10 rounded-full text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: '#1877F2' }}
+              >
+                <span className="font-display text-lg leading-none">f</span>
+              </button>
+            </div>
           </div>
         ))}
       </div>
