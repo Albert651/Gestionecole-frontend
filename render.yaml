@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: gestionecole-frontend
+    runtime: static
+    branch: principal
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://gestion-ecole-m5xq.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
